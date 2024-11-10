@@ -2,9 +2,9 @@ import { Server } from 'ws';
 import http from 'http';
 
 export default function handler(req, res) {
-    // Only handle WebSocket upgrade requests (i.e., WebSocket handshake)
+    // Check if the request is trying to upgrade to WebSocket
     if (req.method === 'GET' && req.headers['upgrade'] === 'websocket') {
-        // Create a WebSocket server on the request connection
+        // Create a WebSocket server for handling the upgrade
         const server = http.createServer((req, res) => {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('WebSocket server is running');
@@ -73,16 +73,18 @@ export default function handler(req, res) {
             });
         });
 
-        // The WebSocket server needs to handle the upgrade request
+        // Handle WebSocket upgrade
         server.on('upgrade', (req, socket, head) => {
             wss.handleUpgrade(req, socket, head, (ws) => {
                 wss.emit('connection', ws, req);
             });
         });
 
-        // Vercel does not use the `server.listen()` method, so we skip it here
-        res.status(200).send('WebSocket server is up and running');
+        // Don't need to start the server with .listen() on Vercel
+        // Return a success response for the WebSocket connection upgrade
+        res.status(200).send('WebSocket server setup');
     } else {
+        // Method Not Allowed for non-upgrade requests
         res.status(405).send('Method Not Allowed');
     }
 }
