@@ -1,16 +1,9 @@
 {
   "name": "lsi-websocket",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "main": "socket.js",
+  "type": "module", 
   "dependencies": {
-    "express": "^4.21.1",
-    "ws": "^8.18.0"
+    "ws": "^8.0.0"
   }
 }
