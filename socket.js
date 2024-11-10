@@ -1,6 +1,6 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
 
 const app = express();
 
@@ -76,6 +76,7 @@ app.get('/', (req, res) => res.send('WebSocket server is running'));
 
 // Start the server
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
 });
