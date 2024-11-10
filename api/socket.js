@@ -1,90 +1,54 @@
-import { Server } from 'ws';
-import http from 'http';
+// api/socket.js
+import WebSocket from 'ws';
 
-export default function handler(req, res) {
-    // Check if the request is trying to upgrade to WebSocket
-    if (req.method === 'GET' && req.headers['upgrade'] === 'websocket') {
-        // Create a WebSocket server for handling the upgrade
-        const server = http.createServer((req, res) => {
-            res.writeHead(200, { 'Content-Type': 'text/plain' });
-            res.end('WebSocket server is running');
-        });
+export default async function handler(req, res) {
+    const { action, userId, targetUserIds } = req.body;
 
-        const wss = new Server({ server });
+    // External WebSocket URL (e.g., on a different server or cloud service)
+    const wsServerUrl = "ws://your-websocket-server-url";  // Change this to your WebSocket server URL
 
-        // Store connected clients by user ID
-        const clients = new Map();
+    // Create a WebSocket client
+    const ws = new WebSocket(wsServerUrl);
 
-        wss.on('connection', (ws) => {
-            console.log('New client connected');
+    ws.on('open', () => {
+        console.log('Connected to WebSocket server');
 
-            ws.on('message', (message) => {
-                const data = JSON.parse(message);  // Assuming the message is in JSON format
+        // Handle registration action
+        if (action === 'register') {
+            ws.send(JSON.stringify({
+                action: 'register',
+                userId: userId,
+            }));
+            console.log(`User ID ${userId} registered.`);
+        }
 
-                // Register or update the client with the user ID
-                if (data.action === 'register') {
-                    const userId = data.userId;
+        // Handle broadcast action
+        if (action === 'broadcast') {
+            ws.send(JSON.stringify({
+                action: 'broadcast',
+                message: 'notify',
+            }));
+            console.log('Broadcast message sent.');
+        }
 
-                    // Check if the user ID is already registered
-                    if (clients.has(userId)) {
-                        // Close the old connection to avoid duplication
-                        clients.get(userId).close();
-                    }
+        // Handle private message action
+        if (action === 'private') {
+            ws.send(JSON.stringify({
+                action: 'private',
+                targetUserIds: targetUserIds,
+                message: 'notify',
+            }));
+            console.log(`Private message sent to ${targetUserIds.join(', ')}`);
+        }
 
-                    // Register the new connection
-                    ws.userId = userId;
-                    clients.set(userId, ws);
-                    console.log(`User ID ${userId} registered.`);
-                }
+        // Close the WebSocket connection after sending the message
+        ws.close();
+    });
 
-                // Handle broadcasting the message to all clients
-                if (data.action === 'broadcast') {
-                    const messageContent = 'notify';
-                    // Broadcast the message to all connected clients
-                    wss.clients.forEach((client) => {
-                        if (client.readyState === WebSocket.OPEN) {
-                            client.send(JSON.stringify({ message: messageContent, from: 'Server' }));
-                        }
-                    });
-                }
+    ws.on('message', (data) => {
+        console.log('Received:', data);
+    });
 
-                // Handle sending a private message to a specific user
-                if (data.action === 'private') {
-                    const targetUserIds = data.targetUserIds;
-                    const messageContent = 'notify';
-
-                    targetUserIds.forEach((targetUserId) => {
-                        const targetClient = clients.get(targetUserId);
-                        if (targetClient && targetClient.readyState === WebSocket.OPEN) {
-                            targetClient.send(JSON.stringify({
-                                message: messageContent
-                            }));
-                        }
-                    });
-                }
-            });
-
-            ws.on('close', () => {
-                // Remove the client from the map on disconnect
-                if (ws.userId) {
-                    clients.delete(ws.userId);
-                    console.log(`User ID ${ws.userId} disconnected.`);
-                }
-            });
-        });
-
-        // Handle WebSocket upgrade
-        server.on('upgrade', (req, socket, head) => {
-            wss.handleUpgrade(req, socket, head, (ws) => {
-                wss.emit('connection', ws, req);
-            });
-        });
-
-        // Don't need to start the server with .listen() on Vercel
-        // Return a success response for the WebSocket connection upgrade
-        res.status(200).send('WebSocket server setup');
-    } else {
-        // Method Not Allowed for non-upgrade requests
-        res.status(405).send('Method Not Allowed');
-    }
+    // Return success response
+    res.status(200).json({ status: 'WebSocket request processed' });
 }
