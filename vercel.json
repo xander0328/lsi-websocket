@@ -1,9 +1,9 @@
 {
     "version": 2,
-    "functions": {
-      "api/socket.js": {
-        "runtime": "nodejs16.x"
-      }
-    }
-  }
-  
+    "builds": [
+        {
+            "src": "api/socket.js",
+            "use": "@vercel/node"
+        }
+    ]
+}
