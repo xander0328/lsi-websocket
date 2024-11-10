@@ -1,6 +1,6 @@
 import express from 'express';
 import http from 'http';
-import WebSocket from 'ws';
+import WebSocket from 'ws'; // Use default import
 
 const app = express();
 
@@ -8,7 +8,7 @@ const app = express();
 const server = http.createServer(app);
 
 // Create a WebSocket server
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server });  // Now `WebSocket` is the default import
 
 // Store connected clients by user ID
 const clients = new Map();
