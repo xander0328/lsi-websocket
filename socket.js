@@ -1,82 +1,81 @@
-// api/socket.js
-import { Server } from 'ws';
-import http from 'http';
+const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
 
-export default function handler(req, res) {
-    // Create HTTP server to handle WebSocket connections
-    const server = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('WebSocket server is running');
-    });
+const app = express();
 
-    const wss = new Server({ server });
+// Create an HTTP server
+const server = http.createServer(app);
 
-    // Store connected clients by user ID
-    const clients = new Map();
+// Create a WebSocket server
+const wss = new WebSocket.Server({ server });
 
-    wss.on('connection', (ws) => {
-        console.log('New client connected');
+// Store connected clients by user ID
+const clients = new Map();
 
-        ws.on('message', (message) => {
-            const data = JSON.parse(message);  // Assuming the message is in JSON format
+wss.on('connection', (ws) => {
+    console.log('New client connected');
 
-            // Register or update the client with the user ID
-            if (data.action === 'register') {
-                const userId = data.userId;
+    ws.on('message', (message) => {
+        const data = JSON.parse(message);  // Assuming the message is in JSON format
 
-                // Check if the user ID is already registered
-                if (clients.has(userId)) {
-                    // Close the old connection to avoid duplication
-                    clients.get(userId).close();
+        // Register or update the client with the user ID
+        if (data.action === 'register') {
+            const userId = data.userId;
+
+            // Check if the user ID is already registered
+            if (clients.has(userId)) {
+                // Close the old connection to avoid duplication
+                clients.get(userId).close();
+            }
+
+            // Register the new connection
+            ws.userId = userId;
+            clients.set(userId, ws);
+            console.log(`User ID ${userId} registered.`);
+        }
+
+        // Handle broadcasting the message to all clients
+        if (data.action === 'broadcast') {
+            const messageContent = 'notify';
+            // Broadcast the message to all connected clients
+            wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({ message: messageContent, from: 'Server' }));
                 }
+            });
+        }
 
-                // Register the new connection
-                ws.userId = userId;
-                clients.set(userId, ws);
-                console.log(`User ID ${userId} registered.`);
-            }
+        // Handle sending a private message to a specific user
+        if (data.action === 'private') {
+            const targetUserIds = data.targetUserIds;
+            const messageContent = 'notify';
 
-            // Handle broadcasting the message to all clients
-            if (data.action === 'broadcast') {
-                const messageContent = 'notify';
-                // Broadcast the message to all connected clients
-                wss.clients.forEach((client) => {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({ message: messageContent, from: 'Server' }));
-                    }
-                });
-            }
-
-            // Handle sending a private message to a specific user
-            if (data.action === 'private') {
-                const targetUserIds = data.targetUserIds;
-                const messageContent = 'notify';
-
-                targetUserIds.forEach((targetUserId) => {
-                    const targetClient = clients.get(targetUserId);
-                    if (targetClient && targetClient.readyState === WebSocket.OPEN) {
-                        targetClient.send(JSON.stringify({
-                            message: messageContent
-                        }));
-                    }
-                });
-            }
-        });
-
-        ws.on('close', () => {
-            // Remove the client from the map on disconnect
-            if (ws.userId) {
-                clients.delete(ws.userId);
-                console.log(`User ID ${ws.userId} disconnected.`);
-            }
-        });
+            targetUserIds.forEach((targetUserId) => {
+                const targetClient = clients.get(targetUserId);
+                if (targetClient && targetClient.readyState === WebSocket.OPEN) {
+                    targetClient.send(JSON.stringify({
+                        message: messageContent
+                    }));
+                }
+            });
+        }
     });
 
-    // Vercel handles serverless functions and requests, so you can leave this out for Vercel’s handling
-    server.listen(3000, () => {
-        console.log('WebSocket server started');
+    ws.on('close', () => {
+        // Remove the client from the map on disconnect
+        if (ws.userId) {
+            clients.delete(ws.userId);
+            console.log(`User ID ${ws.userId} disconnected.`);
+        }
     });
+});
 
-    // Return a response to complete the serverless function
-    res.status(200).send('WebSocket server setup');
-}
+// Set up a basic route for testing
+app.get('/', (req, res) => res.send('WebSocket server is running'));
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`);
+});
